@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LeafTrace AI - Autumn Yard Canopy Attribution</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Font: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            slate: {
+              850: '#111827',
+              900: '#0f172a',
+              950: '#080d1a',
+            },
+            accent: {
+              green: '#10b981',
+              cyan: '#06b6d4',
+              amber: '#f59e0b',
+              red: '#ef4444',
+              purple: '#8b5cf6'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom Scrollbar for sleek dark look */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    .compass-pointer {
+      transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    canvas {
+      touch-action: none;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col overflow-x-hidden select-none">
+
+  <!-- Top Navigation Header -->
+  <header class="bg-slate-900/90 border-b border-slate-800 px-4 lg:px-8 py-3 sticky top-0 z-50 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+      
+      <!-- Brand & Status -->
+      <div class="flex items-center gap-3">
+        <div class="bg-gradient-to-tr from-emerald-500 to-cyan-500 p-2.5 rounded-xl shadow-lg shadow-emerald-500/20 text-slate-950 font-bold">
+          <i class="fa-solid fa-leaf text-xl"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-extrabold text-lg lg:text-xl tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+              LeafTrace AI
+            </h1>
+            <span class="px-2 py-0.5 text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              CAM_01 ACTIVE
+            </span>
+          </div>
+          <p class="text-xs text-slate-400">Autumn Yard Canopy Attribution & Physics Engine</p>
+        </div>
+      </div>
+
+      <!-- Real-Time Metrics Summary Badges -->
+      <div class="flex flex-wrap items-center gap-3 text-xs">
+        <div class="glass-panel px-3 py-1.5 rounded-lg flex items-center gap-2.5">
+          <i class="fa-solid fa-clock text-cyan-400"></i>
+          <div>
+            <div class="text-slate-400 text-[10px] uppercase font-bold tracking-wider">System Time</div>
+            <div id="liveClock" class="font-mono font-bold text-slate-200">00:00:00</div>
+          </div>
+        </div>
+
+        <div class="glass-panel px-3 py-1.5 rounded-lg flex items-center gap-2.5">
+          <i class="fa-solid fa-arrow-down-short-wide text-emerald-400"></i>
+          <div>
+            <div class="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Leaves Tracked</div>
+            <div id="totalTrackedCount" class="font-mono font-bold text-emerald-400 text-sm">0</div>
+          </div>
+        </div>
+
+        <div class="glass-panel px-3 py-1.5 rounded-lg flex items-center gap-2.5">
+          <i class="fa-solid fa-wind text-amber-400"></i>
+          <div>
+            <div class="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Wind Vector</div>
+            <div id="windTelemetry" class="font-mono font-bold text-amber-300">12 mph @ 225°</div>
+          </div>
+        </div>
+
+        <!-- CSV Export Button -->
+        <button id="btnExportCSV" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold px-4 py-2 rounded-lg transition shadow-md shadow-emerald-900/30 flex items-center gap-2 text-xs">
+          <i class="fa-solid fa-file-csv text-sm"></i> Export Log
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Main Workspace Content -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- LEFT COLUMN: Security Camera Canvas & Overlay Controls (7 Cols) -->
+    <section class="lg:col-span-7 flex flex-col gap-4">
+      
+      <!-- Canvas Container Container -->
+      <div class="relative bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-2xl flex flex-col">
+        
+        <!-- Camera HUD Bar -->
+        <div class="bg-slate-950/80 px-4 py-2.5 border-b border-slate-800 flex justify-between items-center text-xs">
+          <div class="flex items-center gap-3">
+            <span class="flex items-center gap-1.5 text-red-400 font-mono font-semibold">
+              <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span> REC
+            </span>
+            <span class="text-slate-400 font-mono">1080p | 60 FPS | Optical Flow AI</span>
+          </div>
+
+          <!-- Quick Toggle Controls -->
+          <div class="flex items-center gap-2">
+            <button id="btnToggleVectors" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium transition flex items-center gap-1.5 border border-slate-700">
+              <i class="fa-solid fa-route text-cyan-400"></i> Vectors
+            </button>
+            <button id="btnToggleCanopies" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium transition flex items-center gap-1.5 border border-slate-700">
+              <i class="fa-solid fa-tree text-emerald-400"></i> Canopies
+            </button>
+            <button id="btnToggleBounding" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium transition flex items-center gap-1.5 border border-slate-700">
+              <i class="fa-solid fa-vector-square text-amber-400"></i> YOLO Boxes
+            </button>
+          </div>
+        </div>
+
+        <!-- Simulation Canvas -->
+        <div class="relative aspect-[4/3] w-full bg-slate-950">
+          <canvas id="simCanvas" class="w-full h-full block cursor-crosshair"></canvas>
+
+          <!-- Draw Canopy Instruction Overlay Banner -->
+          <div id="drawBanner" class="hidden absolute top-3 left-1/2 -translate-x-1/2 bg-amber-500/90 text-slate-950 font-bold px-4 py-1.5 rounded-full text-xs shadow-lg flex items-center gap-2">
+            <i class="fa-solid fa-pencil"></i> Click & Drag to Draw Custom Canopy Boundary
+          </div>
+
+          <!-- Bottom Camera HUD Stats -->
+          <div class="absolute bottom-3 left-3 right-3 flex justify-between items-end pointer-events-none">
+            <div class="bg-slate-950/80 backdrop-blur-sm p-2 rounded-lg border border-slate-800/80 text-[11px] font-mono space-y-1">
+              <div class="text-slate-400"><span class="text-slate-200">FIELD OF VIEW:</span> Yard Zone Alpha</div>
+              <div class="text-slate-400"><span class="text-slate-200">BOUNDING METHOD:</span> ByteTrack + Ray Trace</div>
+            </div>
+
+            <!-- Play / Pause Float Button -->
+            <button id="btnPlayPause" class="pointer-events-auto bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold p-3 rounded-full shadow-lg transition transform active:scale-95 flex items-center justify-center w-12 h-12">
+              <i id="playPauseIcon" class="fa-solid fa-pause text-lg"></i>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Simulation Environment Controls Card -->
+      <div class="glass-panel p-4 rounded-2xl border border-slate-800 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
+          <h2 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+            <i class="fa-solid fa-sliders text-cyan-400"></i> Environmental Simulation Physics
+          </h2>
+          <button id="btnResetSim" class="text-xs text-slate-400 hover:text-slate-200 transition flex items-center gap-1">
+            <i class="fa-solid fa-rotate-left"></i> Clear Leaves
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+          
+          <!-- Leaf Drop Rate Slider -->
+          <div class="space-y-1.5 bg-slate-900/60 p-3 rounded-xl border border-slate-800">
+            <div class="flex justify-between items-center">
+              <label class="text-slate-300 font-medium">Fall Intensity (Rate)</label>
+              <span id="lblDropRate" class="font-mono text-emerald-400 font-bold">Medium</span>
+            </div>
+            <input type="range" id="sliderDropRate" min="1" max="10" value="5" class="w-full accent-emerald-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+          </div>
+
+          <!-- Wind Speed Slider -->
+          <div class="space-y-1.5 bg-slate-900/60 p-3 rounded-xl border border-slate-800">
+            <div class="flex justify-between items-center">
+              <label class="text-slate-300 font-medium">Wind Speed (Velocity)</label>
+              <span id="lblWindSpeed" class="font-mono text-amber-400 font-bold">12 mph</span>
+            </div>
+            <input type="range" id="sliderWindSpeed" min="0" max="35" value="12" class="w-full accent-amber-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+          </div>
+
+        </div>
+
+        <!-- Wind Compass Angle Selector & Canopy Density -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+          
+          <!-- Interactive Wind Direction Picker -->
+          <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800 flex items-center justify-between">
+            <div class="space-y-1">
+              <label class="text-slate-300 font-medium block">Wind Origin Angle</label>
+              <p class="text-[11px] text-slate-400">Blowing toward: <span id="lblWindBearing" class="text-cyan-400 font-bold">SW (225°)</span></p>
+            </div>
+
+            <!-- Compass Wheel Visual -->
+            <div id="compassWheel" class="relative w-12 h-12 rounded-full border-2 border-slate-700 bg-slate-950 flex items-center justify-center cursor-pointer hover:border-cyan-500 transition shadow-inner">
+              <span class="absolute top-0.5 text-[8px] text-slate-500 font-bold">N</span>
+              <div id="compassPointer" class="compass-pointer w-1 h-8 bg-gradient-to-t from-cyan-500 to-transparent rounded-full transform rotate-[225deg]"></div>
+            </div>
+          </div>
+
+          <!-- Canopy Edit Tools -->
+          <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800 space-y-2">
+            <label class="text-slate-300 font-medium block">Tree Calibration Tools</label>
+            <div class="flex gap-2">
+              <button id="btnDrawCanopy" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg py-1.5 text-[11px] font-semibold transition flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-plus text-emerald-400"></i> Add Zone
+              </button>
+              <button id="btnResetCanopies" class="bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 rounded-lg px-2.5 py-1.5 text-[11px] transition">
+                Reset Map
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </section>
+
+    <!-- RIGHT COLUMN: Analytics, Tree Attribution & Live Event Feed (5 Cols) -->
+    <section class="lg:col-span-5 flex flex-col gap-4">
+      
+      <!-- Real-Time Attribution Breakdown Card -->
+      <div class="glass-panel p-4 rounded-2xl border border-slate-800 space-y-4">
+        <h2 class="text-sm font-bold text-slate-200 flex items-center gap-2 border-b border-slate-800/80 pb-2">
+          <i class="fa-solid fa-chart-pie text-emerald-400"></i> Leaf Ownership Breakdown
+        </h2>
+
+        <!-- Custom Canvas Visual Chart for Attribution -->
+        <div class="flex items-center gap-4">
+          <div class="relative w-24 h-24 flex-shrink-0">
+            <canvas id="chartCanvas" width="96" height="96" class="w-24 h-24 block"></canvas>
+            <div class="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
+              <span id="chartTotalText" class="font-bold font-mono text-sm text-slate-100">0</span>
+              <span class="text-[9px] text-slate-400 uppercase">Landed</span>
+            </div>
+          </div>
+
+          <!-- Progress Bars List -->
+          <div id="treeProgressContainer" class="flex-1 space-y-2.5 text-xs">
+            <!-- Dynamically Populated Tree Progress Bars -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Live Landing Logs Table -->
+      <div class="glass-panel p-4 rounded-2xl border border-slate-800 flex-1 flex flex-col min-h-[320px]">
+        <div class="flex justify-between items-center border-b border-slate-800/80 pb-2 mb-3">
+          <h2 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+            <i class="fa-solid fa-list-check text-cyan-400"></i> Live Detection Stream Log
+          </h2>
+          <span class="text-[10px] text-slate-400 font-mono">Auto-scrolling</span>
+        </div>
+
+        <!-- Log Scrollable Area -->
+        <div class="flex-1 overflow-y-auto max-h-[360px] pr-1">
+          <table class="w-full text-left border-collapse text-[11px]">
+            <thead>
+              <tr class="text-slate-400 border-b border-slate-800/80 font-mono">
+                <th class="pb-1.5 font-medium">Time</th>
+                <th class="pb-1.5 font-medium">ID</th>
+                <th class="pb-1.5 font-medium">Source Canopy</th>
+                <th class="pb-1.5 font-medium text-right">Drift</th>
+                <th class="pb-1.5 font-medium text-right">Conf.</th>
+              </tr>
+            </thead>
+            <tbody id="logTableBody" class="divide-y divide-slate-800/40 font-mono">
+              <!-- Dynamically populated rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- JavaScript Simulation, Physics & Analytics Engine -->
+  <script>
+    // System State Definition
+    const state = {
+      isPaused: false,
+      dropRate: 5, // 1 to 10 scale
+      windSpeed: 12, // mph
+      windAngle: 225, // degrees (0=N, 90=E, 180=S, 270=W)
+      showVectors: true,
+      showCanopies: true,
+      showBounding: true,
+      isDrawingCanopy: false,
+      drawStart: null,
+      
+      // Tracking Statistics
+      totalTracked: 0,
+      nextLeafId: 1001,
+      
+      // Canopies Configuration (Normalized Coordinates 0..1 for responsiveness)
+      canopies: [
+        { id: 'tree_a', name: 'Oak Tree (Neighbor Left)', color: '#10b981', x: 0.05, y: 0.05, w: 0.35, h: 0.28, count: 0 },
+        { id: 'tree_b', name: 'Maple Tree (Neighbor Right)', color: '#f59e0b', x: 0.60, y: 0.05, w: 0.35, h: 0.28, count: 0 },
+        { id: 'tree_yard', name: 'Your Yard Tree (Center)', color: '#06b6d4', x: 0.35, y: 0.40, w: 0.30, h: 0.22, count: 0 }
+      ],
+      
+      leaves: [],
+      landedLogs: []
+    };
+
+    // DOM Element References
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    const chartCanvas = document.getElementById('chartCanvas');
+    const chartCtx = chartCanvas.getContext('2d');
+
+    // UI Controls
+    const btnPlayPause = document.getElementById('btnPlayPause');
+    const playPauseIcon = document.getElementById('playPauseIcon');
+    const sliderDropRate = document.getElementById('sliderDropRate');
+    const lblDropRate = document.getElementById('lblDropRate');
+    const sliderWindSpeed = document.getElementById('sliderWindSpeed');
+    const lblWindSpeed = document.getElementById('lblWindSpeed');
+    const compassWheel = document.getElementById('compassWheel');
+    const compassPointer = document.getElementById('compassPointer');
+    const lblWindBearing = document.getElementById('lblWindBearing');
+    const btnToggleVectors = document.getElementById('btnToggleVectors');
+    const btnToggleCanopies = document.getElementById('btnToggleCanopies');
+    const btnToggleBounding = document.getElementById('btnToggleBounding');
+    const btnDrawCanopy = document.getElementById('btnDrawCanopy');
+    const drawBanner = document.getElementById('drawBanner');
+    const btnResetCanopies = document.getElementById('btnResetCanopies');
+    const btnResetSim = document.getElementById('btnResetSim');
+    const btnExportCSV = document.getElementById('btnExportCSV');
+    const liveClock = document.getElementById('liveClock');
+    const totalTrackedCount = document.getElementById('totalTrackedCount');
+    const windTelemetry = document.getElementById('windTelemetry');
+    const treeProgressContainer = document.getElementById('treeProgressContainer');
+    const logTableBody = document.getElementById('logTableBody');
+
+    // Canvas Sizing Adjustments
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Clock Updater
+    setInterval(() => {
+      const now = new Date();
+      liveClock.textContent = now.toTimeString().split(' ')[0];
+    }, 1000);
+
+    // Leaf Colors Palette (Autumn Colors)
+    const LEAF_COLORS = ['#f59e0b', '#ef4444', '#d97706', '#b45309', '#10b981', '#84cc16'];
+
+    class Leaf {
+      constructor(canvasWidth, canvasHeight) {
+        this.id = state.nextLeafId++;
+        
+        // Randomly pick a source canopy to spawn from
+        const sourceCanopy = state.canopies[Math.floor(Math.random() * state.canopies.length)];
+        this.initialCanopy = sourceCanopy;
+
+        // Pixel coordinates inside selected canopy
+        const spawnX = (sourceCanopy.x + Math.random() * sourceCanopy.w) * canvasWidth;
+        const spawnY = (sourceCanopy.y + Math.random() * sourceCanopy.h) * canvasHeight;
+
+        this.x = spawnX;
+        this.y = spawnY;
+        this.z = 1.0 + Math.random() * 0.5; // Height above ground
+        
+        this.vx = 0;
+        this.vy = 0;
+        this.vz = 0.003 + Math.random() * 0.003; // Downward gravity speed
+        
+        this.size = 8 + Math.random() * 6;
+        this.color = LEAF_COLORS[Math.floor(Math.random() * LEAF_COLORS.length)];
+        
+        // Aerodynamic Wobble & Oscillation
+        this.wobblePhase = Math.random() * Math.PI * 2;
+        this.wobbleSpeed = 0.05 + Math.random() * 0.05;
+        this.rotation = Math.random() * Math.PI * 2;
+        this.rotSpeed = (Math.random() - 0.5) * 0.1;
+        
+        this.path = [{ x: this.x, y: this.y }];
+        this.isLanded = false;
+        this.landedTime = null;
+
+        state.totalTracked++;
+        totalTrackedCount.textContent = state.totalTracked;
+      }
+
+      update(width, height) {
+        if (this.isLanded) return;
+
+        // Convert wind angle (degrees) to radian vector
+        const rad = (state.windAngle * Math.PI) / 180;
+        const windForce = state.windSpeed * 0.12;
+
+        // Directional Wind Components
+        const windVx = Math.cos(rad) * windForce;
+        const windVy = Math.sin(rad) * windForce;
+
+        // Aerodynamic fluttering motion
+        this.wobblePhase += this.wobbleSpeed;
+        const flutterX = Math.sin(this.wobblePhase) * 1.5;
+        const flutterY = Math.cos(this.wobblePhase) * 0.8;
+
+        // Velocity Integration
+        this.vx = windVx + flutterX;
+        this.vy = windVy + flutterY;
+        this.z -= this.vz;
+
+        // Position Updates
+        this.x += this.vx;
+        this.y += this.vy;
+        this.rotation += this.rotSpeed;
+
+        // Record Trajectory History
+        if (this.path.length > 25) this.path.shift();
+        this.path.push({ x: this.x, y: this.y });
+
+        // Touchdown check when z height hits 0 or leaves boundary
+        if (this.z <= 0 || this.y >= height || this.x <= 0 || this.x >= width) {
+          this.isLanded = true;
+          this.z = 0;
+          this.landedTime = new Date().toTimeString().split(' ')[0];
+          this.processLandingAttribution(width, height);
+        }
+      }
+
+      processLandingAttribution(width, height) {
+        // Back-project Ray Tracing to find source tree canopy
+        const rad = (state.windAngle * Math.PI) / 180;
+        
+        // Inverse wind vector angle
+        const reverseRad = rad + Math.PI;
+        
+        let attributedCanopy = null;
+        let minDistance = Infinity;
+
+        // Ray trace backwards from landing coordinate
+        const rayStep = 10;
+        let checkX = this.x;
+        let checkY = this.y;
+
+        for (let i = 0; i < 50; i++) {
+          checkX += Math.cos(reverseRad) * rayStep;
+          checkY += Math.sin(reverseRad) * rayStep;
+
+          // Check intersection with any canopy bounding box
+          for (const canopy of state.canopies) {
+            const cx = canopy.x * width;
+            const cy = canopy.y * height;
+            const cw = canopy.w * width;
+            const ch = canopy.h * height;
+
+            if (checkX >= cx && checkX <= cx + cw && checkY >= cy && checkY <= cy + ch) {
+              attributedCanopy = canopy;
+              break;
+            }
+          }
+          if (attributedCanopy) break;
+        }
+
+        // Fallback to initial canopy if ray-tracing missed outside bounds
+        if (!attributedCanopy) {
+          attributedCanopy = this.initialCanopy;
+        }
+
+        attributedCanopy.count++;
+
+        // Calculate drift distance in yards (scaled pixels)
+        const startX = this.path[0].x;
+        const startY = this.path[0].y;
+        const driftPx = Math.hypot(this.x - startX, this.y - startY);
+        const driftYards = (driftPx * 0.08).toFixed(1);
+
+        // Confidence metric based on wind speed predictability
+        const confidence = Math.max(65, Math.min(99, Math.round(95 - state.windSpeed * 0.8 + Math.random() * 5)));
+
+        // Create log entry
+        const logEntry = {
+          time: this.landedTime,
+          id: `#LF-${this.id}`,
+          canopyName: attributedCanopy.name,
+          color: attributedCanopy.color,
+          drift: `${driftYards} yd`,
+          confidence: `${confidence}%`
+        };
+
+        state.landedLogs.unshift(logEntry);
+        if (state.landedLogs.length > 30) state.landedLogs.pop();
+
+        updateAnalyticsUI();
+      }
+
+      draw(ctx) {
+        // Draw Motion Path Trajectory Vectors
+        if (state.showVectors && this.path.length > 1) {
+          ctx.beginPath();
+          ctx.moveTo(this.path[0].x, this.path[0].y);
+          for (let i = 1; i < this.path.length; i++) {
+            ctx.lineTo(this.path[i].x, this.path[i].y);
+          }
+          ctx.strokeStyle = 'rgba(6, 182, 212, 0.4)';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([3, 3]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation);
+
+        // Scale perspective based on altitude Z
+        const scale = 0.5 + this.z * 0.5;
+        ctx.scale(scale, scale);
+
+        // Draw Leaf Shape
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, this.size, this.size / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Leaf Stem
+        ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-this.size, 0);
+        ctx.lineTo(this.size, 0);
+        ctx.stroke();
+
+        ctx.restore();
+
+        // Draw YOLO Computer Vision Object Detection Bounding Boxes
+        if (state.showBounding && !this.isLanded) {
+          const boxSize = this.size * scale * 2.2;
+          ctx.strokeStyle = '#f59e0b';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(this.x - boxSize/2, this.y - boxSize/2, boxSize, boxSize);
+
+          ctx.fillStyle = '#f59e0b';
+          ctx.font = '9px monospace';
+          ctx.fillText(`leaf ${(0.88 + Math.random()*0.1).toFixed(2)}`, this.x - boxSize/2, this.y - boxSize/2 - 2);
+        }
+      }
+    }
+
+    function drawBackground(width, height) {
+      // Grass Yard Base
+      ctx.fillStyle = '#06140e';
+      ctx.fillRect(0, 0, width, height);
+
+      // Property Zone Grid Lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+      ctx.lineWidth = 1;
+      const gridSize = 40;
+      for (let x = 0; x < width; x += gridSize) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+      }
+      for (let y = 0; y < height; y += gridSize) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+      }
+
+      // Property Fence Line (Your Yard Boundary)
+      ctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 6]);
+      ctx.strokeRect(width * 0.2, height * 0.35, width * 0.6, height * 0.6);
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.7)';
+      ctx.font = '10px sans-serif';
+      ctx.fillText('PROPERTY BOUNDARY (YOUR YARD)', width * 0.2 + 8, height * 0.35 + 16);
+    }
+
+    function drawCanopies(width, height) {
+      if (!state.showCanopies) return;
+
+      for (const canopy of state.canopies) {
+        const x = canopy.x * width;
+        const y = canopy.y * height;
+        const w = canopy.w * width;
+        const h = canopy.h * height;
+
+        // Canopy Zone Fill
+        ctx.fillStyle = canopy.color + '22'; // low opacity
+        ctx.fillRect(x, y, w, h);
+
+        // Canopy Boundary Stroke
+        ctx.strokeStyle = canopy.color;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
+
+        // Label Badge
+        ctx.fillStyle = canopy.color;
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillText(canopy.name, x + 8, y + 18);
+      }
+    }
+
+    // Main Simulation Animation Loop
+    function animate() {
+      const width = canvas.width;
+      const height = canvas.height;
+
+      ctx.clearRect(0, 0, width, height);
+
+      // Render Map & Zones
+      drawBackground(width, height);
+      drawCanopies(width, height);
+
+      // Spawn new leaves based on intensity drop rate
+      if (!state.isPaused && Math.random() < state.dropRate * 0.08) {
+        state.leaves.push(new Leaf(width, height));
+      }
+
+      // Update & Render Active Leaves
+      for (let i = state.leaves.length - 1; i >= 0; i--) {
+        const leaf = state.leaves[i];
+        if (!state.isPaused) {
+          leaf.update(width, height);
+        }
+        leaf.draw(ctx);
+
+        // Remove landed leaves after capacity to maintain performance
+        if (leaf.isLanded && Date.now() - leaf.landedTime > 20000) {
+          state.leaves.splice(i, 1);
+        }
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    function updateAnalyticsUI() {
+      // 1. Update Log Table
+      logTableBody.innerHTML = '';
+      state.landedLogs.forEach(log => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-800/40 transition';
+        tr.innerHTML = `
+          <td class="py-1.5 text-slate-400">${log.time}</td>
+          <td class="py-1.5 text-slate-200 font-bold">${log.id}</td>
+          <td class="py-1.5 font-medium" style="color: ${log.color}">${log.canopyName}</td>
+          <td class="py-1.5 text-right text-slate-300">${log.drift}</td>
+          <td class="py-1.5 text-right font-bold text-emerald-400">${log.confidence}</td>
+        `;
+        logTableBody.appendChild(tr);
+      });
+
+      // 2. Calculate Total Landed Count
+      const totalLanded = state.canopies.reduce((acc, c) => acc + c.count, 0);
+      document.getElementById('chartTotalText').textContent = totalLanded;
+
+      // 3. Render Custom Doughnut Chart
+      chartCtx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+      const cx = chartCanvas.width / 2;
+      const cy = chartCanvas.height / 2;
+      const radius = 38;
+      const innerRadius = 26;
+
+      let startAngle = -Math.PI / 2;
+
+      state.canopies.forEach(canopy => {
+        const sliceAngle = totalLanded > 0 ? (canopy.count / totalLanded) * (Math.PI * 2) : 0;
+
+        chartCtx.beginPath();
+        chartCtx.arc(cx, cy, radius, startAngle, startAngle + sliceAngle);
+        chartCtx.arc(cx, cy, innerRadius, startAngle + sliceAngle, startAngle, true);
+        chartCtx.closePath();
+        chartCtx.fillStyle = canopy.color;
+        chartCtx.fill();
+
+        startAngle += sliceAngle;
+      });
+
+      if (totalLanded === 0) {
+        chartCtx.beginPath();
+        chartCtx.arc(cx, cy, radius, 0, Math.PI * 2);
+        chartCtx.arc(cx, cy, innerRadius, Math.PI * 2, 0, true);
+        chartCtx.fillStyle = '#334155';
+        chartCtx.fill();
+      }
+
+      // 4. Update Progress Bars
+      treeProgressContainer.innerHTML = '';
+      state.canopies.forEach(canopy => {
+        const pct = totalLanded > 0 ? Math.round((canopy.count / totalLanded) * 100) : 0;
+        
+        const div = document.createElement('div');
+        div.className = 'space-y-1';
+        div.innerHTML = `
+          <div class="flex justify-between text-[11px]">
+            <span class="text-slate-300 font-medium truncate max-w-[140px]">${canopy.name}</span>
+            <span class="font-mono font-bold" style="color: ${canopy.color}">${pct}% (${canopy.count})</span>
+          </div>
+          <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+            <div class="h-full rounded-full transition-all duration-300" style="width: ${pct}%; background-color: ${canopy.color}"></div>
+          </div>
+        `;
+        treeProgressContainer.appendChild(div);
+      });
+    }
+
+    // Play/Pause Button
+    btnPlayPause.addEventListener('click', () => {
+      state.isPaused = !state.isPaused;
+      playPauseIcon.className = state.isPaused ? 'fa-solid fa-play text-lg' : 'fa-solid fa-pause text-lg';
+      btnPlayPause.className = state.isPaused 
+        ? 'pointer-events-auto bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold p-3 rounded-full shadow-lg transition transform active:scale-95 flex items-center justify-center w-12 h-12'
+        : 'pointer-events-auto bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold p-3 rounded-full shadow-lg transition transform active:scale-95 flex items-center justify-center w-12 h-12';
+    });
+
+    // Drop Rate Slider
+    sliderDropRate.addEventListener('input', (e) => {
+      state.dropRate = parseInt(e.target.value);
+      const labels = ['Light', 'Light', 'Moderate', 'Moderate', 'Medium', 'Medium', 'Heavy', 'Heavy', 'Storm', 'Torrential'];
+      lblDropRate.textContent = labels[state.dropRate - 1];
+    });
+
+    // Wind Speed Slider
+    sliderWindSpeed.addEventListener('input', (e) => {
+      state.windSpeed = parseInt(e.target.value);
+      lblWindSpeed.textContent = `${state.windSpeed} mph`;
+      updateWindTelemetry();
+    });
+
+    // Compass Direction Click
+    compassWheel.addEventListener('click', (e) => {
+      const rect = compassWheel.getBoundingClientRect();
+      const x = e.clientX - rect.left - rect.width / 2;
+      const y = e.clientY - rect.top - rect.height / 2;
+      let angle = Math.atan2(y, x) * (180 / Math.PI) + 90;
+      if (angle < 0) angle += 360;
+      
+      state.windAngle = Math.round(angle);
+      compassPointer.style.transform = `rotate(${state.windAngle}deg)`;
+      updateWindTelemetry();
+    });
+
+    function updateWindTelemetry() {
+      const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+      const index = Math.round(state.windAngle / 45) % 8;
+      const dirStr = dirs[index];
+      lblWindBearing.textContent = `${dirStr} (${state.windAngle}°)`;
+      windTelemetry.textContent = `${state.windSpeed} mph @ ${state.windAngle}°`;
+    }
+
+    // Overlay Toggles
+    btnToggleVectors.addEventListener('click', () => {
+      state.showVectors = !state.showVectors;
+      btnToggleVectors.classList.toggle('bg-slate-700', state.showVectors);
+    });
+
+    btnToggleCanopies.addEventListener('click', () => {
+      state.showCanopies = !state.showCanopies;
+      btnToggleCanopies.classList.toggle('bg-slate-700', state.showCanopies);
+    });
+
+    btnToggleBounding.addEventListener('click', () => {
+      state.showBounding = !state.showBounding;
+      btnToggleBounding.classList.toggle('bg-slate-700', state.showBounding);
+    });
+
+    // Reset Buttons
+    btnResetSim.addEventListener('click', () => {
+      state.leaves = [];
+      state.landedLogs = [];
+      state.canopies.forEach(c => c.count = 0);
+      state.totalTracked = 0;
+      totalTrackedCount.textContent = '0';
+      updateAnalyticsUI();
+    });
+
+    btnResetCanopies.addEventListener('click', () => {
+      state.canopies = [
+        { id: 'tree_a', name: 'Oak Tree (Neighbor Left)', color: '#10b981', x: 0.05, y: 0.05, w: 0.35, h: 0.28, count: 0 },
+        { id: 'tree_b', name: 'Maple Tree (Neighbor Right)', color: '#f59e0b', x: 0.60, y: 0.05, w: 0.35, h: 0.28, count: 0 },
+        { id: 'tree_yard', name: 'Your Yard Tree (Center)', color: '#06b6d4', x: 0.35, y: 0.40, w: 0.30, h: 0.22, count: 0 }
+      ];
+      updateAnalyticsUI();
+    });
+
+    // Custom Interactive Drawing Tool on Canvas
+    btnDrawCanopy.addEventListener('click', () => {
+      state.isDrawingCanopy = !state.isDrawingCanopy;
+      drawBanner.classList.toggle('hidden', !state.isDrawingCanopy);
+      btnDrawCanopy.classList.toggle('bg-emerald-600', state.isDrawingCanopy);
+    });
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (!state.isDrawingCanopy) return;
+      const rect = canvas.getBoundingClientRect();
+      state.drawStart = {
+        x: (e.clientX - rect.left) / canvas.width,
+        y: (e.clientY - rect.top) / canvas.height
+      };
+    });
+
+    canvas.addEventListener('mouseup', (e) => {
+      if (!state.isDrawingCanopy || !state.drawStart) return;
+      const rect = canvas.getBoundingClientRect();
+      const endX = (e.clientX - rect.left) / canvas.width;
+      const endY = (e.clientY - rect.top) / canvas.height;
+
+      const x = Math.min(state.drawStart.x, endX);
+      const y = Math.min(state.drawStart.y, endY);
+      const w = Math.abs(endX - state.drawStart.x);
+      const h = Math.abs(endY - state.drawStart.y);
+
+      if (w > 0.05 && h > 0.05) {
+        const colors = ['#8b5cf6', '#ec4899', '#3b82f6', '#10b981'];
+        const newCanopy = {
+          id: `custom_${Date.now()}`,
+          name: `Custom Zone ${state.canopies.length + 1}`,
+          color: colors[state.canopies.length % colors.length],
+          x, y, w, h, count: 0
+        };
+        state.canopies.push(newCanopy);
+        updateAnalyticsUI();
+      }
+
+      state.drawStart = null;
+      state.isDrawingCanopy = false;
+      drawBanner.classList.add('hidden');
+      btnDrawCanopy.classList.remove('bg-emerald-600');
+    });
+
+    // CSV Export Log
+    btnExportCSV.addEventListener('click', () => {
+      if (state.landedLogs.length === 0) {
+        alert('No leaf landing logs recorded yet!');
+        return;
+      }
+
+      let csvContent = 'data:text/csv;charset=utf-8,Timestamp,Leaf ID,Source Canopy,Drift Distance,Confidence Score\n';
+      state.landedLogs.forEach(row => {
+        csvContent += `${row.time},${row.id},"${row.canopyName}",${row.drift},${row.confidence}\n`;
+      });
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `LeafTrace_Attribution_Log_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+
+    // Initialize Application
+    updateAnalyticsUI();
+    animate();
+  </script>
+</body>
+</html>
